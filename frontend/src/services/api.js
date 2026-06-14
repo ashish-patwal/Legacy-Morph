@@ -15,12 +15,13 @@ function resolveApiUrl() {
 
   try {
     const apiUrl = new URL(configuredUrl);
-    if (
-      localHosts.has(apiUrl.hostname) &&
-      localHosts.has(window.location.hostname)
-    ) {
-      apiUrl.hostname = window.location.hostname;
-      return apiUrl.origin;
+    if (localHosts.has(apiUrl.hostname)) {
+      if (localHosts.has(window.location.hostname)) {
+        apiUrl.hostname = window.location.hostname;
+        return apiUrl.origin;
+      }
+
+      return window.location.origin;
     }
   } catch {
     return configuredUrl;
