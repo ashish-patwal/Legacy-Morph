@@ -5,7 +5,7 @@ FROM node:22-bookworm-slim AS frontend-builder
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm install --no-audit --no-fund
 
 COPY frontend/ ./
 ARG VITE_BACKEND_URL=
