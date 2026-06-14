@@ -1,3 +1,26 @@
+.migration-panel__batch-summary {
+  border-bottom: 1px solid var(--line-soft);
+  padding: 16px 18px;
+}
+
+.migration-panel__batch-summary strong {
+  display: block;
+  font-size: 18px;
+  margin-top: 6px;
+}
+
+.migration-panel__files {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.migration-panel__file {
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
 .migration-panel__meta {
   align-items: center;
   border-bottom: 1px solid var(--line-soft);

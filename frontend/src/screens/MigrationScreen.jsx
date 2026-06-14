@@ -8,28 +8,35 @@ import "./MigrationScreen.css";
 function MigrationScreen() {
   const navigate = useNavigate();
   const workflow = useWorkflow();
-  const currentFile = workflow.generatedFiles.at(-1);
+  const generatedBatch = workflow.generatedFiles;
+  const hasPendingReview = generatedBatch.some((file) => file.status === "generated");
 
   const generate = async () => {
     try {
       const result = await workflow.run("migrate", () => api.migrate(workflow.session.id));
-      workflow.setGeneratedFiles([...workflow.generatedFiles, result]);
+      workflow.setGeneratedFiles([...workflow.generatedFiles, ...result]);
     } catch {
       // The shared workflow already exposes the request error.
     }
   };
 
   const review = async (decision, comments) => {
-    if (!currentFile) return;
+    const reviewableFiles = generatedBatch.filter((file) => file.status === "generated");
+    if (!reviewableFiles.length) return;
     try {
-      const result = await workflow.run("review", () =>
-        api.reviewFile(currentFile.id, {
-          decision,
-          comments: comments.trim() || null,
-        }),
+      const results = await workflow.run("review", () =>
+        Promise.all(
+          reviewableFiles.map((file) =>
+            api.reviewFile(file.id, {
+              decision,
+              comments: comments.trim() || null,
+            }),
+          ),
+        ),
       );
+      const updatedById = new Map(results.map((file) => [file.id, file]));
       workflow.setGeneratedFiles(
-        workflow.generatedFiles.map((file) => (file.id === result.id ? result : file)),
+        workflow.generatedFiles.map((file) => updatedById.get(file.id) || file),
       );
       if (decision === "approved") {
         navigate("/validation");
@@ -51,13 +58,13 @@ function MigrationScreen() {
     <div className="screen migration-screen">
       <span className="screen-kicker">Controlled generation</span>
       <h1 className="screen-title">
-        One file.
+        Whole code.
         <br />
-        One <em>decision.</em>
+        One <em>review.</em>
       </h1>
       <p className="screen-intro">
-        Each file is generated from approved source evidence, checked independently,
-        and held for your review before the migration moves forward.
+        Generate the complete planned code batch from approved source evidence,
+        then review and approve the full migration before validation.
       </p>
 
       {workflow.error && <div className="error-banner migration-screen__message">{workflow.error}</div>}
@@ -72,11 +79,11 @@ function MigrationScreen() {
         </div>
         <button
           className="primary-button"
-          disabled={Boolean(workflow.loading) || (currentFile && currentFile.status === "generated")}
+          disabled={Boolean(workflow.loading) || hasPendingReview || workflow.generatedFiles.length > 0}
           onClick={generate}
           type="button"
         >
-          {workflow.loading === "migrate" ? "Generating..." : currentFile ? "Generate next file" : "Generate first file"}
+          {workflow.loading === "migrate" ? "Generating code..." : "Generate whole code"}
         </button>
       </section>
 
@@ -86,7 +93,7 @@ function MigrationScreen() {
           <span className="panel-label">Human checkpoint</span>
         </div>
         <MigrationPanel
-          file={currentFile}
+          files={generatedBatch}
           loading={workflow.loading === "review"}
           onReview={review}
         />

@@ -253,11 +253,11 @@ def approve_migration_plan(
     return approved
 
 
-@app.post("/migrate", response_model=GeneratedFileResponse)
+@app.post("/migrate", response_model=list[GeneratedFileResponse])
 async def migrate(
     request: MigrateRequest,
     database: Session = Depends(get_db),
-) -> GeneratedFileResponse:
+) -> list[GeneratedFileResponse]:
     session = _get_session(database, request.migration_session_id)
     plan_artifact = _load_json(session.migration_plan_json, {})
     documents = await _load_selected_documents(session)
@@ -271,38 +271,54 @@ async def migrate(
     ]
     ast_artifact = _read_json_artifact(session.ast_artifact_path)
     dependency_schema = _read_json_artifact(session.dependency_schema_path)
-    approved_files = [
-        _generated_file_context(file)
+    generated_records: list[GeneratedFile] = []
+    generation_context = [
+        {**_generated_file_context(file), "status": "approved"}
         for file in session.generated_files
-        if file.status == "approved"
     ]
+    planned_count = len(plan_artifact.get("plan", {}).get("files", []))
 
     try:
-        result = await migration_agent.generate_next_file(
-            session.id,
-            plan_artifact,
-            source_documents,
-            ast_artifact,
-            dependency_schema,
-            approved_files,
-        )
+        while len(generation_context) < planned_count:
+            result = await migration_agent.generate_next_file(
+                session.id,
+                plan_artifact,
+                source_documents,
+                ast_artifact,
+                dependency_schema,
+                generation_context,
+            )
+            generated = result["generated_file"]
+            record = GeneratedFile(
+                migration_session_id=session.id,
+                source_paths_json=_dump_json(generated["source_paths"]),
+                target_path=generated["target_path"],
+                content=generated["content"],
+                status="generated",
+            )
+            database.add(record)
+            database.flush()
+            database.refresh(record)
+            generated_records.append(record)
+            generation_context.append(
+                {**_generated_file_context(record), "status": "approved"}
+            )
     except (AIServiceError, MigrationAgentError) as exc:
+        database.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
-    generated = result["generated_file"]
-    record = GeneratedFile(
-        migration_session_id=session.id,
-        source_paths_json=_dump_json(generated["source_paths"]),
-        target_path=generated["target_path"],
-        content=generated["content"],
-        status="generated",
-    )
-    database.add(record)
-    session.status = "file_generated"
-    session.current_step = "file_validation"
+    if not generated_records:
+        raise HTTPException(
+            status_code=409,
+            detail="All planned files have already been generated.",
+        )
+
+    session.status = "files_generated"
+    session.current_step = "batch_review"
     database.commit()
-    database.refresh(record)
-    return _generated_file_response(record)
+    for record in generated_records:
+        database.refresh(record)
+    return [_generated_file_response(record) for record in generated_records]
 
 
 @app.post(
