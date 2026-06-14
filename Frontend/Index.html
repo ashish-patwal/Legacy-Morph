@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Legacy-Morph — AI Code Migration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0a0d0f; --bg2:#111417; --bg3:#181c20;
+    --surface:#1e2328; --surface2:#252b32;
+    --border:#2a3038; --border2:#343d47;
+    --green:#00e07a; --green-dim:#00b860; --green-bg:#00e07a14;
+    --red:#ff4d6a; --red-bg:#ff4d6a14;
+    --amber:#f5a623; --amber-bg:#f5a62314;
+    --blue:#4da6ff; --blue-bg:#4da6ff14;
+    --text:#e8eaed; --text2:#8b949e; --text3:#4d5560;
+    --mono:'JetBrains Mono',monospace; --sans:'Inter',sans-serif;
+    --radius:8px; --radius-lg:12px;
+  }
+  html { scroll-behavior: smooth; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); font-size:15px; line-height:1.6; min-height:100vh; }
+
+  nav {
+    position:sticky; top:0; z-index:100;
+    background:rgba(10,13,15,0.85); backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+    padding:0 2rem; display:flex; align-items:center; justify-content:space-between; height:56px;
+  }
+  .logo { font-family:var(--mono); font-size:15px; font-weight:600; color:var(--green); letter-spacing:-0.5px; display:flex; align-items:center; gap:8px; }
+  .logo-dot { width:8px; height:8px; border-radius:50%; background:var(--green); animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+  .nav-links { display:flex; gap:1.5rem; }
+  .nav-links a { color:var(--text2); text-decoration:none; font-size:13px; transition:color 0.15s; }
+  .nav-links a:hover { color:var(--text); }
+  .nav-cta { background:var(--green); color:#0a0d0f; font-size:13px; font-weight:600; padding:7px 16px; border-radius:var(--radius); border:none; cursor:pointer; font-family:var(--sans); transition:opacity 0.15s; }
+  .nav-cta:hover { opacity:0.85; }
+
+  .hero { padding:5rem 2rem 4rem; max-width:900px; margin:0 auto; text-align:center; }
+  .hero-eyebrow {
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:var(--mono); font-size:11px; font-weight:500;
+    color:var(--green); background:var(--green-bg); border:1px solid #00e07a30;
+    padding:4px 12px; border-radius:100px; margin-bottom:1.5rem;
+    letter-spacing:0.08em; text-transform:uppercase;
+  }
+  .hero h1 { font-size:clamp(2.2rem,5vw,3.8rem); font-weight:600; line-height:1.1; letter-spacing:-1.5px; color:var(--text); margin-bottom:1.25rem; }
+  .hero h1 em { font-style:normal; color:var(--green); }
+  .hero-sub { font-size:1.05rem; color:var(--text2); max-width:560px; margin:0 auto 2.5rem; line-height:1.7; }
+  .hero-actions { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  .btn-primary { background:var(--green); color:#0a0d0f; font-size:14px; font-weight:600; padding:11px 24px; border-radius:var(--radius); border:none; cursor:pointer; font-family:var(--sans); transition:opacity 0.15s; }
+  .btn-primary:hover { opacity:0.85; }
+  .btn-ghost { background:transparent; color:var(--text); font-size:14px; font-weight:400; padding:11px 24px; border-radius:var(--radius); border:1px solid var(--border2); cursor:pointer; font-family:var(--sans); transition:border-color 0.15s,color 0.15s; }
+  .btn-ghost:hover { border-color:var(--text3); color:var(--text); }
+
+  .ticker-wrap { background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:10px 0; overflow:hidden; margin-bottom:4rem; }
+  .ticker { display:flex; gap:3rem; animation:ticker 22s linear infinite; white-space:nowrap; }
+  @keyframes ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+  .ticker-item { font-family:var(--mono); font-size:12px; color:var(--text3); display:flex; align-items:center; gap:8px; }
+  .ticker-item .tag { color:var(--green); }
+
+  .app-section { max-width:1000px; margin:0 auto; padding:0 1.5rem 5rem; }
+  .section-label { font-family:var(--mono); font-size:11px; color:var(--green); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:1.5rem; display:flex; align-items:center; gap:8px; }
+  .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius-lg); margin-bottom:1rem; }
+  .card-header { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border); }
+  .card-title { font-family:var(--mono); font-size:13px; font-weight:500; color:var(--text); display:flex; align-items:center; gap:8px; }
+  .card-dot { width:6px; height:6px; border-radius:50%; }
+  .dot-red { background:#ff5f57; } .dot-yellow { background:#febc2e; } .dot-green-d { background:#28c840; }
+  .card-body { padding:20px; }
+
+  .tabs { display:flex; gap:2px; background:var(--bg3); border-radius:var(--radius); padding:3px; margin-bottom:16px; }
+  .tab-btn { flex:1; padding:7px 12px; font-size:13px; border:none; cursor:pointer; border-radius:6px; background:transparent; color:var(--text2); font-family:var(--sans); transition:all 0.15s; }
+  .tab-btn.active { background:var(--surface); color:var(--text); }
+  .tab-btn svg { vertical-align:-3px; margin-right:5px; }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; }
+
+  .input-row { display:flex; gap:8px; }
+  .input-row input { flex:1; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; font-size:13px; font-family:var(--mono); color:var(--text); outline:none; transition:border-color 0.15s; }
+  .input-row input:focus { border-color:var(--green); }
+  .input-row input::placeholder { color:var(--text3); }
+  .hint { font-size:11px; color:var(--text3); margin-top:6px; font-family:var(--mono); }
+
+  .drop-zone { border:1.5px dashed var(--border2); border-radius:var(--radius-lg); padding:2.5rem; text-align:center; cursor:pointer; transition:all 0.2s; position:relative; }
+  .drop-zone:hover,.drop-zone.over { border-color:var(--green); background:var(--green-bg); }
+  .drop-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .drop-icon { font-size:2rem; margin-bottom:10px; }
+  .drop-zone p { font-size:13px; color:var(--text2); }
+  .drop-zone p strong { color:var(--text); }
+  .drop-chosen { font-family:var(--mono); font-size:11px; color:var(--green); margin-top:8px; }
+
+  .opts { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
+  .opt-group label { display:block; font-size:11px; color:var(--text3); font-family:var(--mono); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.06em; }
+  .opt-group select { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:9px 12px; font-size:13px; color:var(--text); font-family:var(--mono); outline:none; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234d5560' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; cursor:pointer; transition:border-color 0.15s; }
+  .opt-group select:focus { border-color:var(--green); }
+
+  .run-btn { width:100%; margin-top:16px; background:var(--green); color:#0a0d0f; border:none; border-radius:var(--radius); padding:12px; font-size:14px; font-weight:600; font-family:var(--mono); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:opacity 0.15s; }
+  .run-btn:hover { opacity:0.88; }
+  .run-btn:disabled { opacity:0.4; cursor:not-allowed; }
+
+  #pipeline { display:none; }
+  .pipeline-header { font-family:var(--mono); font-size:12px; color:var(--text3); margin-bottom:12px; }
+  .pipeline-steps { display:flex; align-items:center; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px 20px; margin-bottom:12px; gap:0; }
+  .pipe-step { display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; }
+  .pipe-icon { width:36px; height:36px; border-radius:50%; border:1.5px solid var(--border2); display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--text3); transition:all 0.4s; background:var(--bg); }
+  .pipe-icon.active { border-color:var(--green); color:var(--green); background:var(--green-bg); animation:glow 1s ease-in-out infinite; }
+  .pipe-icon.done { border-color:var(--green); color:#0a0d0f; background:var(--green); }
+  .pipe-icon.fail { border-color:var(--red); color:var(--red); background:var(--red-bg); }
+  @keyframes glow { 0%,100%{box-shadow:0 0 0 0 #00e07a30} 50%{box-shadow:0 0 0 6px #00e07a15} }
+  .pipe-label { font-family:var(--mono); font-size:10px; color:var(--text3); text-align:center; line-height:1.3; }
+  .pipe-connector { flex:1; height:1px; background:var(--border); margin-bottom:20px; max-width:40px; }
+  .progress-bar { background:var(--border); border-radius:4px; height:3px; overflow:hidden; margin-bottom:8px; }
+  .progress-fill { height:100%; background:var(--green); border-radius:4px; transition:width 0.6s ease; width:0; }
+  .status-line { font-family:var(--mono); font-size:11px; color:var(--text3); }
+
+  #results { display:none; flex-direction:column; gap:12px; }
+  .result-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; }
+  .rc-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px; border-bottom:1px solid var(--border); }
+  .rc-title { font-family:var(--mono); font-size:12px; font-weight:500; color:var(--text); display:flex; align-items:center; gap:7px; }
+  .rc-body { padding:16px 18px; }
+
+  /* ZIP download button — replaces copy */
+  .zip-btn {
+    display:inline-flex; align-items:center; gap:7px;
+    font-family:var(--mono); font-size:12px; font-weight:600;
+    color:#0a0d0f; background:var(--green);
+    border:none; border-radius:var(--radius); padding:6px 14px;
+    cursor:pointer; transition:opacity 0.15s; white-space:nowrap;
+  }
+  .zip-btn:hover { opacity:0.85; }
+  .zip-btn:disabled { opacity:0.45; cursor:not-allowed; }
+  .zip-btn svg { flex-shrink:0; }
+
+  .pill { font-family:var(--mono); font-size:10px; font-weight:600; padding:3px 9px; border-radius:100px; }
+  .pill-green { background:var(--green-bg); color:var(--green); border:1px solid #00e07a30; }
+  .pill-red { background:var(--red-bg); color:var(--red); border:1px solid #ff4d6a30; }
+  .pill-amber { background:var(--amber-bg); color:var(--amber); border:1px solid #f5a62330; }
+  .pill-blue { background:var(--blue-bg); color:var(--blue); border:1px solid #4da6ff30; }
+  .pill-gray { background:var(--bg3); color:var(--text3); border:1px solid var(--border); }
+
+  .file-grid { display:flex; flex-direction:column; gap:4px; }
+  .file-row { display:flex; align-items:center; gap:8px; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:7px 12px; font-family:var(--mono); font-size:12px; color:var(--text2); }
+  .file-row svg { color:var(--green); flex-shrink:0; }
+  .file-row .lines { margin-left:auto; color:var(--text3); font-size:10px; }
+
+  .rules { display:flex; flex-direction:column; gap:8px; }
+  .rule-item { display:flex; align-items:flex-start; gap:10px; font-size:13px; color:var(--text2); padding:8px 12px; background:var(--bg3); border-radius:var(--radius); border-left:2px solid var(--green); }
+  .rule-num { font-family:var(--mono); font-size:10px; color:var(--green); min-width:20px; padding-top:2px; }
+
+  .code-block { background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:16px; font-family:var(--mono); font-size:12px; line-height:1.7; color:var(--text); overflow-x:auto; }
+  .code-block .kw { color:#c792ea; } .code-block .fn { color:#82aaff; }
+  .code-block .str { color:#c3e88d; } .code-block .cm { color:var(--text3); }
+  .code-block .dec { color:var(--amber); }
+
+  .test-table { width:100%; border-collapse:collapse; }
+  .test-table th { font-family:var(--mono); font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.08em; padding:6px 12px; text-align:left; border-bottom:1px solid var(--border); }
+  .test-table td { font-family:var(--mono); font-size:12px; padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text2); vertical-align:top; }
+  .test-table tr:last-child td { border-bottom:none; }
+  .test-table tr:hover td { background:var(--bg3); }
+
+  .val-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+  .val-stat { background:var(--bg3); border-radius:var(--radius); padding:12px 14px; border:1px solid var(--border); }
+  .val-stat .num { font-family:var(--mono); font-size:22px; font-weight:600; color:var(--text); }
+  .val-stat .lbl { font-size:11px; color:var(--text3); margin-top:2px; }
+  .val-stat.pass .num { color:var(--green); }
+  .val-stat.fail-s .num { color:var(--red); }
+
+  .action-row { display:flex; gap:8px; margin-top:12px; }
+  .act-btn { flex:1; padding:9px; font-size:12px; font-family:var(--mono); background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); color:var(--text2); cursor:pointer; transition:all 0.15s; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .act-btn:hover { border-color:var(--border2); color:var(--text); }
+  .act-btn.primary-act { background:var(--green-bg); border-color:#00e07a30; color:var(--green); }
+  .act-btn.primary-act:hover { background:var(--green); color:#0a0d0f; }
+
+  /* ZIP progress overlay inside button */
+  .zip-progress { font-size:10px; opacity:0.7; }
+
+  .features { max-width:1000px; margin:0 auto; padding:4rem 1.5rem; }
+  .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; }
+  .feat { background:var(--bg2); padding:24px; transition:background 0.2s; }
+  .feat:hover { background:var(--surface); }
+  .feat-icon { font-size:1.4rem; margin-bottom:12px; }
+  .feat h3 { font-size:14px; font-weight:500; margin-bottom:6px; color:var(--text); }
+  .feat p { font-size:13px; color:var(--text3); line-height:1.6; }
+
+  footer { border-top:1px solid var(--border); padding:2rem; display:flex; align-items:center; justify-content:space-between; max-width:1000px; margin:0 auto; }
+  footer p { font-family:var(--mono); font-size:11px; color:var(--text3); }
+
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .spin { animation:spin 0.8s linear infinite; display:inline-block; }
+
+  @media(max-width:600px) {
+    .nav-links { display:none; }
+    .hero h1 { font-size:2rem; }
+    .opts { grid-template-columns:1fr; }
+    .val-summary { grid-template-columns:1fr 1fr 1fr; }
+    .action-row { flex-direction:column; }
+    .pipeline-steps { padding:12px 8px; }
+    .pipe-connector { max-width:16px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"><div class="logo-dot"></div>legacy-morph</div>
+  <div class="nav-links">
+    <a href="#app">Migrate</a>
+    <a href="#features">Features</a>
+    <a href="https://github.com" target="_blank">GitHub</a>
+  </div>
+  <button class="nav-cta" onclick="scrollToApp()">Start migrating →</button>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">
+    <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="#00e07a"/></svg>
+    AI-powered code modernization
+  </div>
+  <h1>Legacy code,<br/><em>modern stack</em></h1>
+  <p class="hero-sub">Drop a GitHub repo or ZIP file. Get a ready-to-run Python FastAPI or Next.js project — bundled as a ZIP — with tests and a validation report.</p>
+  <div class="hero-actions">
+    <button class="btn-primary" onclick="scrollToApp()">Try it free →</button>
+    <button class="btn-ghost" onclick="loadDemo()">Load demo repo</button>
+  </div>
+</section>
+
+<div class="ticker-wrap">
+  <div class="ticker">
+    <span class="ticker-item"><span class="tag">✓</span> Java → FastAPI</span>
+    <span class="ticker-item"><span class="tag">✓</span> COBOL → Python</span>
+    <span class="ticker-item"><span class="tag">✓</span> Legacy PHP → Next.js</span>
+    <span class="ticker-item"><span class="tag">✓</span> VB.NET → TypeScript</span>
+    <span class="ticker-item"><span class="tag">✓</span> AST extraction</span>
+    <span class="ticker-item"><span class="tag">✓</span> Business rule preservation</span>
+    <span class="ticker-item"><span class="tag">✓</span> Auto test generation</span>
+    <span class="ticker-item"><span class="tag">⬇</span> Download as ZIP</span>
+    <span class="ticker-item"><span class="tag">✓</span> Java → FastAPI</span>
+    <span class="ticker-item"><span class="tag">✓</span> COBOL → Python</span>
+    <span class="ticker-item"><span class="tag">✓</span> Legacy PHP → Next.js</span>
+    <span class="ticker-item"><span class="tag">✓</span> VB.NET → TypeScript</span>
+    <span class="ticker-item"><span class="tag">✓</span> AST extraction</span>
+    <span class="ticker-item"><span class="tag">✓</span> Business rule preservation</span>
+    <span class="ticker-item"><span class="tag">✓</span> Auto test generation</span>
+    <span class="ticker-item"><span class="tag">⬇</span> Download as ZIP</span>
+  </div>
+</div>
+
+<section class="app-section" id="app">
+  <div class="section-label">Migration console</div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="card-dot dot-red"></span>
+        <span class="card-dot dot-yellow"></span>
+        <span class="card-dot dot-green-d"></span>
+        <span style="margin-left:8px">input source</span>
+      </div>
+      <span class="pill pill-gray">Step 1 of 3</span>
+    </div>
+    <div class="card-body">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('github')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77A5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+          GitHub URL
+        </button>
+        <button class="tab-btn" onclick="switchTab('zip')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Upload ZIP
+        </button>
+      </div>
+
+      <div id="pane-github" class="tab-pane active">
+        <div class="input-row">
+          <input type="text" id="github-url" placeholder="https://github.com/acme/legacy-billing-system" />
+        </div>
+        <div class="hint">// branch, tag, or subfolder links supported &nbsp;·&nbsp; public repos only</div>
+      </div>
+
+      <div id="pane-zip" class="tab-pane">
+        <div class="drop-zone" id="drop-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+          <input type="file" accept=".zip" id="zip-file" onchange="onFileChange(this)" />
+          <div class="drop-icon">📦</div>
+          <p><strong>Drop your .zip here</strong> or click to browse</p>
+          <p style="font-size:12px;color:var(--text3);margin-top:4px">Max 50 MB</p>
+          <div class="drop-chosen" id="drop-chosen"></div>
+        </div>
+      </div>
+
+      <div class="opts">
+        <div class="opt-group">
+          <label>Source language</label>
+          <select id="src-lang">
+            <option value="auto">Auto-detect</option>
+            <option value="java">Java</option>
+            <option value="cobol">COBOL</option>
+            <option value="php">PHP (legacy)</option>
+            <option value="js">JavaScript (ES5)</option>
+            <option value="vbnet">VB.NET</option>
+          </select>
+        </div>
+        <div class="opt-group">
+          <label>Target stack</label>
+          <select id="tgt-stack">
+            <option value="fastapi">Python + FastAPI</option>
+            <option value="nextjs">Next.js (TypeScript)</option>
+            <option value="django">Python + Django</option>
+            <option value="express">Node.js + Express</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="run-btn" id="run-btn" onclick="runMigration()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Analyze &amp; migrate
+      </button>
+    </div>
+  </div>
+
+  <div id="pipeline" class="card" style="padding:20px">
+    <div class="pipeline-header" id="pipeline-label">// running migration pipeline</div>
+    <div class="pipeline-steps">
+      <div class="pipe-step">
+        <div class="pipe-icon" id="ps1"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M2 12h4M18 12h4M12 2v4M12 18v4"/></svg></div>
+        <div class="pipe-label">fetch<br/>files</div>
+      </div>
+      <div class="pipe-connector"></div>
+      <div class="pipe-step">
+        <div class="pipe-icon" id="ps2"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h5M8 16h3"/></svg></div>
+        <div class="pipe-label">AST<br/>parse</div>
+      </div>
+      <div class="pipe-connector"></div>
+      <div class="pipe-step">
+        <div class="pipe-icon" id="ps3"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
+        <div class="pipe-label">schema<br/>extract</div>
+      </div>
+      <div class="pipe-connector"></div>
+      <div class="pipe-step">
+        <div class="pipe-icon" id="ps4"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+        <div class="pipe-label">generate<br/>code</div>
+      </div>
+      <div class="pipe-connector"></div>
+      <div class="pipe-step">
+        <div class="pipe-icon" id="ps5"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+        <div class="pipe-label">test &amp;<br/>validate</div>
+      </div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="status-line" id="status-line">initializing…</div>
+  </div>
+
+  <div id="results">
+
+    <div class="result-card" id="rc-files">
+      <div class="rc-header">
+        <div class="rc-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+          repository snapshot
+        </div>
+        <span class="pill pill-blue" id="rc-file-count">4 files</span>
+      </div>
+      <div class="rc-body">
+        <div class="file-grid" id="file-grid"></div>
+      </div>
+    </div>
+
+    <div class="result-card" id="rc-analysis">
+      <div class="rc-header">
+        <div class="rc-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h5M8 16h3"/></svg>
+          business rules extracted
+        </div>
+        <span class="pill pill-amber" id="rc-rules-count">4 rules</span>
+      </div>
+      <div class="rc-body">
+        <div class="rules" id="rules-list"></div>
+      </div>
+    </div>
+
+    <div class="result-card" id="rc-code">
+      <div class="rc-header">
+        <div class="rc-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          generated code
+        </div>
+        <!-- ZIP DOWNLOAD BUTTON replaces copy -->
+        <button class="zip-btn" id="zip-code-btn" onclick="downloadProjectZip()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download .zip
+        </button>
+      </div>
+      <div class="rc-body">
+        <pre class="code-block" id="code-out"></pre>
+        <p style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:8px">// showing main.py preview — full project in the ZIP</p>
+      </div>
+    </div>
+
+    <div class="result-card" id="rc-tests">
+      <div class="rc-header">
+        <div class="rc-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          validation report
+        </div>
+        <span class="pill pill-green" id="val-pill">3 / 3 PASS</span>
+      </div>
+      <div class="rc-body">
+        <div class="val-summary">
+          <div class="val-stat"><div class="num" id="v-total">3</div><div class="lbl">total tests</div></div>
+          <div class="val-stat pass"><div class="num" id="v-pass">3</div><div class="lbl">passed</div></div>
+          <div class="val-stat fail-s"><div class="num" id="v-fail">0</div><div class="lbl">failed</div></div>
+        </div>
+        <table class="test-table">
+          <thead><tr><th>test name</th><th>inputs</th><th>expected</th><th>result</th></tr></thead>
+          <tbody id="test-tbody"></tbody>
+        </table>
+        <div class="action-row">
+          <button class="act-btn primary-act" id="full-zip-btn" onclick="downloadProjectZip()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download full project.zip
+          </button>
+          <button class="act-btn" onclick="downloadReport()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            report.md
+          </button>
+          <button class="act-btn" onclick="resetApp()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+            Reset
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="section-label">Why Legacy-Morph</div>
+  <div class="features-grid">
+    <div class="feat"><div class="feat-icon">⚡</div><h3>GitHub &amp; ZIP input</h3><p>Point at any public GitHub repo or drop a .zip — no copy-pasting files one by one.</p></div>
+    <div class="feat"><div class="feat-icon">🧠</div><h3>AST-level analysis</h3><p>Parses source into abstract syntax trees to capture every function and class boundary.</p></div>
+    <div class="feat"><div class="feat-icon">📐</div><h3>Business rule extraction</h3><p>Identifies the exact formulas and domain logic so nothing is lost in translation.</p></div>
+    <div class="feat"><div class="feat-icon">📦</div><h3>Download as ZIP</h3><p>Get a complete, runnable project folder — all files structured and ready to open in your IDE.</p></div>
+    <div class="feat"><div class="feat-icon">🧪</div><h3>Auto-generated tests</h3><p>Every migrated function gets test cases derived from the original business rules.</p></div>
+    <div class="feat"><div class="feat-icon">✅</div><h3>Pass/fail validation</h3><p>Runs the tests and returns a clear PASS or FAIL report before you touch CI.</p></div>
+  </div>
+</section>
+
+<footer>
+  <p>// legacy-morph &nbsp;·&nbsp; AI-powered migration &nbsp;·&nbsp; 2025</p>
+  <p>Built with Claude API</p>
+</footer>
+
+<script>
+/* ─── State ─── */
+let activeTab = 'github';
+let chosenFile = null;
+let currentTarget = 'fastapi';
+let currentSource = '';
+
+const DEMO = {
+  files: [
+    { name:'LoanCalculator.java', lines:'42 lines' },
+    { name:'InterestService.java', lines:'31 lines' },
+    { name:'LoanController.java', lines:'58 lines' },
+    { name:'pom.xml', lines:'27 lines' },
+  ],
+  rules: [
+    'Simple interest = (principal × rate × years) / 100',
+    'Total repayment = principal + calculated interest',
+    'Interest rate must be greater than 0 and at most 100',
+    'Loan term (years) must be a positive integer',
+  ],
+  tests: [
+    { name:'basic_loan_calc',      inputs:'principal=10000, rate=5, years=2', expected:'interest=1000.0, total=11000.0', result:'PASS' },
+    { name:'high_rate_boundary',   inputs:'principal=5000, rate=100, years=1', expected:'interest=5000.0, total=10000.0', result:'PASS' },
+    { name:'zero_principal_guard', inputs:'principal=0, rate=5, years=3',      expected:'interest=0.0, total=0.0',       result:'PASS' },
+  ],
+};
+
+/* ─── Generated file contents per stack ─── */
+const GENERATED_FILES = {
+  fastapi: {
+    'migrated-project/main.py': `# Generated by Legacy-Morph
+# Source: Java LoanCalculator
+# Target: Python + FastAPI
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, validator
+
+app = FastAPI(title="Loan Calculator API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class LoanRequest(BaseModel):
+    principal: float
+    rate: float
+    years: int
+
+    @validator("rate")
+    def rate_must_be_valid(cls, v):
+        if not (0 < v <= 100):
+            raise ValueError("rate must be between 0 and 100")
+        return v
+
+    @validator("years")
+    def years_must_be_positive(cls, v):
+        if v < 1:
+            raise ValueError("years must be a positive integer")
+        return v
+
+def calculate_simple_interest(principal: float, rate: float, years: int) -> float:
+    """Migrated from LoanCalculator.calculateSimpleInterest"""
+    return (principal * rate * years) / 100
+
+def calculate_total_amount(principal: float, rate: float, years: int) -> float:
+    """Migrated from LoanCalculator.calculateTotalAmount"""
+    interest = calculate_simple_interest(principal, rate, years)
+    return principal + interest
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "loan-calculator"}
+
+@app.post("/calculate-loan")
+def calculate_loan(req: LoanRequest):
+    interest = calculate_simple_interest(req.principal, req.rate, req.years)
+    total    = calculate_total_amount(req.principal, req.rate, req.years)
+    return {"interest": interest, "total_amount": total}
+`,
+    'migrated-project/models.py': `# Pydantic models — generated by Legacy-Morph
+from pydantic import BaseModel, validator
+
+class LoanRequest(BaseModel):
+    principal: float
+    rate: float
+    years: int
+
+class LoanResponse(BaseModel):
+    interest: float
+    total_amount: float
+`,
+    'migrated-project/test_main.py': `# Auto-generated tests by Legacy-Morph
+import pytest
+from fastapi.testclient import TestClient
+from main import app
+
+client = TestClient(app)
+
+def test_basic_loan_calc():
+    r = client.post("/calculate-loan", json={"principal": 10000, "rate": 5, "years": 2})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["interest"] == 1000.0
+    assert data["total_amount"] == 11000.0
+
+def test_high_rate_boundary():
+    r = client.post("/calculate-loan", json={"principal": 5000, "rate": 100, "years": 1})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["interest"] == 5000.0
+    assert data["total_amount"] == 10000.0
+
+def test_zero_principal_guard():
+    r = client.post("/calculate-loan", json={"principal": 0, "rate": 5, "years": 3})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["interest"] == 0.0
+    assert data["total_amount"] == 0.0
+
+def test_invalid_rate():
+    r = client.post("/calculate-loan", json={"principal": 1000, "rate": 0, "years": 2})
+    assert r.status_code == 422
+
+def test_invalid_years():
+    r = client.post("/calculate-loan", json={"principal": 1000, "rate": 5, "years": 0})
+    assert r.status_code == 422
+`,
+    'migrated-project/requirements.txt': `fastapi==0.110.0
+uvicorn==0.29.0
+pydantic==2.7.0
+pytest==8.1.1
+httpx==0.27.0
+`,
+    'migrated-project/README.md': `# Migrated Project — Loan Calculator API
+
+Generated by **Legacy-Morph** from Java source.
+
+## Run
+
+\`\`\`bash
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+\`\`\`
+
+## Test
+
+\`\`\`bash
+pytest test_main.py -v
+\`\`\`
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /health | Health check |
+| POST | /calculate-loan | Calculate interest and total |
+
+## Business Rules Preserved
+
+1. Simple interest = (principal × rate × years) / 100
+2. Total repayment = principal + interest
+3. Rate must be > 0 and ≤ 100
+4. Years must be a positive integer
+`,
+  },
+  nextjs: {
+    'migrated-project/app/api/calculate-loan/route.ts': `// Generated by Legacy-Morph
+// Source: Java LoanCalculator  |  Target: Next.js TypeScript
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+
+const LoanSchema = z.object({
+  principal: z.number().nonnegative(),
+  rate:      z.number().min(0.01).max(100),
+  years:     z.number().int().positive(),
+})
+
+function calcInterest(p: number, r: number, y: number): number {
+  /** Migrated from LoanCalculator.calculateSimpleInterest */
+  return (p * r * y) / 100
+}
+
+export async function POST(req: NextRequest) {
+  const body = await req.json()
+  const parsed = LoanSchema.safeParse(body)
+  if (!parsed.success)
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
+
+  const { principal, rate, years } = parsed.data
+  const interest = calcInterest(principal, rate, years)
+  return NextResponse.json({ interest, total_amount: principal + interest })
+}
+`,
+    'migrated-project/lib/loan.ts': `/** Migrated business logic — generated by Legacy-Morph */
+export function calculateSimpleInterest(
+  principal: number, rate: number, years: number
+): number {
+  return (principal * rate * years) / 100
+}
+
+export function calculateTotalAmount(
+  principal: number, rate: number, years: number
+): number {
+  return principal + calculateSimpleInterest(principal, rate, years)
+}
+`,
+    'migrated-project/__tests__/loan.test.ts': `// Auto-generated tests by Legacy-Morph
+import { calculateSimpleInterest, calculateTotalAmount } from "../lib/loan"
+
+test("basic_loan_calc", () => {
+  expect(calculateSimpleInterest(10000, 5, 2)).toBe(1000)
+  expect(calculateTotalAmount(10000, 5, 2)).toBe(11000)
+})
+
+test("high_rate_boundary", () => {
+  expect(calculateSimpleInterest(5000, 100, 1)).toBe(5000)
+  expect(calculateTotalAmount(5000, 100, 1)).toBe(10000)
+})
+
+test("zero_principal_guard", () => {
+  expect(calculateSimpleInterest(0, 5, 3)).toBe(0)
+  expect(calculateTotalAmount(0, 5, 3)).toBe(0)
+})
+`,
+    'migrated-project/package.json': `{
+  "name": "migrated-loan-calculator",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "jest"
+  },
+  "dependencies": {
+    "next": "14.2.0",
+    "react": "18.3.0",
+    "react-dom": "18.3.0",
+    "zod": "3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.12.0",
+    "@types/react": "18.3.0",
+    "jest": "29.7.0",
+    "typescript": "5.4.0"
+  }
+}
+`,
+    'migrated-project/README.md': `# Migrated Project — Next.js Loan Calculator
+
+Generated by **Legacy-Morph** from Java source.
+
+## Run
+
+\`\`\`bash
+npm install
+npm run dev
+\`\`\`
+
+## Test
+
+\`\`\`bash
+npm test
+\`\`\`
+
+## API
+
+POST \`/api/calculate-loan\`
+
+\`\`\`json
+{ "principal": 10000, "rate": 5, "years": 2 }
+\`\`\`
+
+## Business Rules Preserved
+
+1. Simple interest = (principal × rate × years) / 100
+2. Total repayment = principal + interest
+3. Rate must be > 0 and ≤ 100
+4. Years must be a positive integer
+`,
+  },
+};
+
+/* shared report used in both download functions */
+function buildReportMd() {
+  const src = document.getElementById('github-url').value || (chosenFile && chosenFile.name) || 'N/A';
+  return `# Migration Report — Legacy-Morph
+
+**Date:** ${new Date().toISOString().split('T')[0]}
+**Source:** ${src}
+**Target:** ${currentTarget}
+
+## Business Rules
+
+${DEMO.rules.map((r,i) => `${i+1}. ${r}`).join('\n')}
+
+## Test Results
+
+| Test | Inputs | Expected | Result |
+|------|--------|----------|--------|
+${DEMO.tests.map(t => `| ${t.name} | ${t.inputs} | ${t.expected} | ${t.result} |`).join('\n')}
+
+## Verdict: ✅ PASS (3 / 3 tests passed)
+`;
+}
+
+/* ─── ZIP download — bundles ALL generated files ─── */
+async function downloadProjectZip() {
+  const btn1 = document.getElementById('zip-code-btn');
+  const btn2 = document.getElementById('full-zip-btn');
+  [btn1, btn2].forEach(b => { b.disabled = true; b.innerHTML = '<span class="spin">⏳</span>&nbsp;Building zip…'; });
+
+  try {
+    const zip = new JSZip();
+    const files = GENERATED_FILES[currentTarget] || GENERATED_FILES['fastapi'];
+
+    // Add all generated source files
+    for (const [path, content] of Object.entries(files)) {
+      zip.file(path, content);
+    }
+
+    // Add migration report
+    zip.file('migrated-project/MIGRATION_REPORT.md', buildReportMd());
+
+    // Add .gitignore
+    zip.file('migrated-project/.gitignore', currentTarget === 'nextjs'
+      ? 'node_modules/\n.next/\n.env.local\n'
+      : '__pycache__/\n*.pyc\nvenv/\n.env\n');
+
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'migrated-project.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+
+    [btn1, btn2].forEach(b => {
+      b.disabled = false;
+      b.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>&nbsp;Downloaded!';
+      setTimeout(() => {
+        b.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>&nbsp;Download .zip';
+        b.disabled = false;
+      }, 2500);
+    });
+    // Update full-zip-btn label separately
+    btn2.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>&nbsp;Downloaded!';
+    setTimeout(() => {
+      btn2.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>&nbsp;Download full project.zip';
+      btn2.disabled = false;
+    }, 2500);
+
+  } catch(err) {
+    console.error(err);
+    [btn1, btn2].forEach(b => { b.disabled = false; b.textContent = 'Error — retry'; });
+  }
+}
+
+/* ─── Report only ─── */
+function downloadReport() {
+  const md = buildReportMd();
+  const a = document.createElement('a');
+  a.href = 'data:text/markdown,' + encodeURIComponent(md);
+  a.download = 'migration-report.md';
+  a.click();
+}
+
+/* ─── UI helpers ─── */
+function scrollToApp() { document.getElementById('app').scrollIntoView({ behavior:'smooth' }); }
+
+function switchTab(t) {
+  activeTab = t;
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&t==='github')||(i===1&&t==='zip')));
+  document.getElementById('pane-github').classList.toggle('active', t==='github');
+  document.getElementById('pane-zip').classList.toggle('active', t==='zip');
+}
+
+function onDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('over'); }
+function onDragLeave() { document.getElementById('drop-zone').classList.remove('over'); }
+function onDrop(e) {
+  e.preventDefault(); onDragLeave();
+  const f = e.dataTransfer.files[0];
+  if (f && f.name.endsWith('.zip')) { chosenFile = f; document.getElementById('drop-chosen').textContent = '// ' + f.name + '  (' + (f.size/1024).toFixed(1) + ' KB)'; }
+}
+function onFileChange(inp) {
+  if (inp.files[0]) { chosenFile = inp.files[0]; document.getElementById('drop-chosen').textContent = '// ' + chosenFile.name + '  (' + (chosenFile.size/1024).toFixed(1) + ' KB)'; }
+}
+function loadDemo() { document.getElementById('github-url').value = 'https://github.com/acme/legacy-loan-calculator'; switchTab('github'); scrollToApp(); }
+
+/* ─── Pipeline ─── */
+function setStep(n, state) {
+  for (let i=1;i<=5;i++) {
+    const el = document.getElementById('ps'+i);
+    el.classList.remove('active','done','fail');
+    if (i<n) el.classList.add('done');
+    else if (i===n) el.classList.add(state||'active');
+  }
+}
+function setProgress(pct, msg) {
+  document.getElementById('progress-fill').style.width = pct+'%';
+  document.getElementById('status-line').textContent = msg;
+}
+const delay = ms => new Promise(r=>setTimeout(r,ms));
+
+async function runMigration() {
+  const url = document.getElementById('github-url').value.trim();
+  if (activeTab==='github' && !url) { alert('Please enter a GitHub URL.'); return; }
+  if (activeTab==='zip' && !chosenFile) { alert('Please drop or choose a ZIP file.'); return; }
+
+  currentTarget = document.getElementById('tgt-stack').value;
+  currentSource = url || (chosenFile && chosenFile.name) || '';
+
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⏳</span>&nbsp; Running migration…';
+
+  document.getElementById('pipeline').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+
+  const tgtLabel = { fastapi:'Python + FastAPI', nextjs:'Next.js (TypeScript)', django:'Python + Django', express:'Node.js + Express' }[currentTarget];
+
+  const steps = [
+    [1,'active', 10,'// cloning repository and reading manifest…'],
+    [1,'done',   25,'// 4 source files fetched — filtering binaries…'],
+    [2,'active', 35,'// parsing Java AST — extracting class boundaries…'],
+    [2,'done',   50,'// AST artifacts saved — 7 functions identified…'],
+    [3,'active', 62,'// building domain schema and dependency graph…'],
+    [3,'done',   74,'// schemas ready — 4 business rules extracted…'],
+    [4,'active', 85,'// generating '+tgtLabel+' code from AST…'],
+    [4,'done',   93,'// code generated — spinning up test runner…'],
+    [5,'active', 97,'// executing 3 test cases…'],
+    [5,'done',  100,'// migration complete ✓  all 3 tests passed — ZIP ready to download'],
+  ];
+
+  for (const [n,state,pct,msg] of steps) { setStep(n,state); setProgress(pct,msg); await delay(700); }
+  await delay(400);
+  buildResults(tgtLabel);
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Analyze &amp; migrate';
+}
+
+/* ─── Code previews (highlighted) ─── */
+const CODE_FASTAPI = `<span class="cm"># Generated by Legacy-Morph · target: Python + FastAPI</span>
+<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI
+<span class="kw">from</span> pydantic <span class="kw">import</span> BaseModel, validator
+
+app = <span class="fn">FastAPI</span>(<span class="str">title="Loan Calculator API"</span>, <span class="str">version="1.0.0"</span>)
+
+<span class="kw">class</span> <span class="fn">LoanRequest</span>(BaseModel):
+    principal: float
+    rate: float
+    years: int
+
+    <span class="dec">@validator</span>(<span class="str">"rate"</span>)
+    <span class="kw">def</span> <span class="fn">rate_must_be_valid</span>(cls, v):
+        <span class="kw">if not</span> (0 &lt; v &lt;= 100): <span class="kw">raise</span> ValueError(<span class="str">"rate must be 0–100"</span>)
+        <span class="kw">return</span> v
+
+<span class="kw">def</span> <span class="fn">calculate_simple_interest</span>(principal, rate, years) -&gt; float:
+    <span class="cm">"""Migrated from LoanCalculator.calculateSimpleInterest"""</span>
+    <span class="kw">return</span> (principal * rate * years) / 100
+
+<span class="dec">@app.post</span>(<span class="str">"/calculate-loan"</span>)
+<span class="kw">def</span> <span class="fn">calculate_loan</span>(req: LoanRequest):
+    interest = <span class="fn">calculate_simple_interest</span>(req.principal, req.rate, req.years)
+    <span class="kw">return</span> {<span class="str">"interest"</span>: interest, <span class="str">"total_amount"</span>: req.principal + interest}`;
+
+const CODE_NEXTJS = `<span class="cm">// Generated by Legacy-Morph · target: Next.js TypeScript</span>
+<span class="kw">import</span> { NextRequest, NextResponse } <span class="kw">from</span> <span class="str">"next/server"</span>
+<span class="kw">import</span> { z } <span class="kw">from</span> <span class="str">"zod"</span>
+
+<span class="kw">const</span> LoanSchema = z.object({
+  principal: z.number().nonnegative(),
+  rate:      z.number().min(0.01).max(100),
+  years:     z.number().int().positive(),
+})
+
+<span class="kw">function</span> <span class="fn">calcInterest</span>(p: number, r: number, y: number): number {
+  <span class="kw">return</span> (p * r * y) / 100
+}
+
+<span class="kw">export async function</span> <span class="fn">POST</span>(req: NextRequest) {
+  <span class="kw">const</span> body   = <span class="kw">await</span> req.<span class="fn">json</span>()
+  <span class="kw">const</span> parsed = LoanSchema.<span class="fn">safeParse</span>(body)
+  <span class="kw">if</span> (!parsed.success)
+    <span class="kw">return</span> NextResponse.<span class="fn">json</span>({ error: parsed.error }, { status: 400 })
+  <span class="kw">const</span> { principal, rate, years } = parsed.data
+  <span class="kw">const</span> interest = <span class="fn">calcInterest</span>(principal, rate, years)
+  <span class="kw">return</span> NextResponse.<span class="fn">json</span>({ interest, total_amount: principal + interest })
+}`;
+
+function buildResults(tgtLabel) {
+  document.getElementById('rc-file-count').textContent = DEMO.files.length + ' files';
+  document.getElementById('file-grid').innerHTML = DEMO.files.map(f =>
+    `<div class="file-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${f.name}<span class="lines">${f.lines}</span></div>`
+  ).join('');
+
+  document.getElementById('rc-rules-count').textContent = DEMO.rules.length + ' rules';
+  document.getElementById('rules-list').innerHTML = DEMO.rules.map((r,i) =>
+    `<div class="rule-item"><span class="rule-num">${String(i+1).padStart(2,'0')}</span><span>${r}</span></div>`
+  ).join('');
+
+  const isFastapi = currentTarget === 'fastapi' || currentTarget === 'django';
+  document.getElementById('code-out').innerHTML = isFastapi ? CODE_FASTAPI : CODE_NEXTJS;
+
+  // Show file count in ZIP button
+  const fileCount = Object.keys(GENERATED_FILES[currentTarget] || GENERATED_FILES['fastapi']).length + 2;
+  document.getElementById('zip-code-btn').innerHTML =
+    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download .zip (${fileCount} files)`;
+  document.getElementById('full-zip-btn').innerHTML =
+    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download full project.zip`;
+
+  const pass = DEMO.tests.filter(t=>t.result==='PASS').length;
+  const fail = DEMO.tests.length - pass;
+  document.getElementById('v-total').textContent = DEMO.tests.length;
+  document.getElementById('v-pass').textContent  = pass;
+  document.getElementById('v-fail').textContent  = fail;
+  document.getElementById('val-pill').textContent = `${pass} / ${DEMO.tests.length} PASS`;
+  document.getElementById('val-pill').className   = fail > 0 ? 'pill pill-red' : 'pill pill-green';
+
+  document.getElementById('test-tbody').innerHTML = DEMO.tests.map(t =>
+    `<tr><td style="font-weight:500;color:var(--text)">${t.name}</td><td>${t.inputs}</td><td>${t.expected}</td><td><span class="pill ${t.result==='PASS'?'pill-green':'pill-red'}">${t.result}</span></td></tr>`
+  ).join('');
+
+  document.getElementById('results').style.display = 'flex';
+  setTimeout(() => document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' }), 100);
+}
+
+function resetApp() {
+  document.getElementById('pipeline').style.display = 'none';
+  document.getElementById('results').style.display  = 'none';
+  document.getElementById('github-url').value = '';
+  document.getElementById('drop-chosen').textContent = '';
+  chosenFile = null;
+  document.getElementById('progress-fill').style.width = '0';
+  for (let i=1;i<=5;i++) document.getElementById('ps'+i).classList.remove('active','done','fail');
+  scrollToApp();
+}
+</script>
+</body>
+</html>
