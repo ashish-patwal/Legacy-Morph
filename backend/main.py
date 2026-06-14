@@ -400,6 +400,14 @@ def download_generated_package(
             "README.md",
             _package_readme(session, package_files),
         )
+        zip_file.writestr(
+            "SETUP.md",
+            _package_setup_guide(session, package_files),
+        )
+        zip_file.writestr(
+            "INSTRUCTIONS.md",
+            _package_usage_instructions(session, package_files),
+        )
         for generated_file in package_files:
             zip_file.writestr(
                 _safe_archive_path(generated_file.target_path),
@@ -594,16 +602,26 @@ def _package_readme(
     generated_files: list[GeneratedFile],
 ) -> str:
     target_stack = _load_json(session.target_stack_json, {})
+    language = target_stack.get("language", "unspecified")
+    framework = target_stack.get("framework", "unspecified")
     lines = [
         "# Legacy-Morph Generated Package",
+        "",
+        "This ZIP contains modernized code generated from legacy source evidence.",
+        "Review the code before production use.",
         "",
         f"- Migration session: `{session.id}`",
         f"- Source repository: `{session.repository_url}`",
         f"- Source branch: `{session.branch or 'default'}`",
         f"- Source commit: `{session.commit_sha or 'not captured'}`",
-        f"- Target language: `{target_stack.get('language', 'unspecified')}`",
-        f"- Target framework: `{target_stack.get('framework', 'unspecified')}`",
+        f"- Target language: `{language}`",
+        f"- Target framework: `{framework}`",
         f"- Files included: `{len(generated_files)}`",
+        "",
+        "## Package Guides",
+        "",
+        "- `SETUP.md`: dependency and environment setup for this generated code",
+        "- `INSTRUCTIONS.md`: how to run, inspect, and continue the generated app",
         "",
         "## Included Files",
         "",
@@ -618,6 +636,217 @@ def _package_readme(
         ]
     )
     return "\n".join(lines)
+
+
+def _package_setup_guide(
+    session: MigrationSession,
+    generated_files: list[GeneratedFile],
+) -> str:
+    target_stack = _load_json(session.target_stack_json, {})
+    language = str(target_stack.get("language") or "unspecified")
+    framework = str(target_stack.get("framework") or "unspecified")
+    package_manager = str(target_stack.get("package_manager") or "").strip()
+    build_tool = str(target_stack.get("build_tool") or "").strip()
+
+    lines = [
+        "# Setup Guide",
+        "",
+        f"Target language: `{language}`",
+        f"Target framework: `{framework}`",
+        "",
+        "## 1. Extract The Package",
+        "",
+        "```bash",
+        "unzip legacy-morph-<session>.zip -d generated-app",
+        "cd generated-app",
+        "```",
+        "",
+    ]
+
+    if _is_python_fastapi(target_stack):
+        lines.extend(
+            [
+                "## 2. Create A Python Environment",
+                "",
+                "```bash",
+                "python -m venv .venv",
+                "source .venv/bin/activate",
+                "python -m pip install --upgrade pip",
+                "```",
+                "",
+                "## 3. Install Dependencies",
+                "",
+                "The generated package may not include a complete dependency file yet.",
+                "Start with the common FastAPI runtime dependencies:",
+                "",
+                "```bash",
+                "pip install fastapi uvicorn pydantic",
+                "```",
+                "",
+                "If generated files import database drivers or ORMs, install those too.",
+                "For example:",
+                "",
+                "```bash",
+                "pip install sqlalchemy psycopg2-binary",
+                "```",
+                "",
+                "## 4. Configure Environment",
+                "",
+                "Create a local `.env` if the generated code requires runtime settings:",
+                "",
+                "```text",
+                "DATABASE_URL=sqlite:///./app.db",
+                "APP_ENV=local",
+                "```",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "## 2. Install Dependencies",
+                "",
+                "Install dependencies for the selected target stack.",
+                "",
+                f"- Package manager: `{package_manager or 'not specified'}`",
+                f"- Build tool: `{build_tool or 'not specified'}`",
+                "",
+                "Review generated imports and add the required framework/runtime packages.",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "## 5. Review Generated Files",
+            "",
+            "Before running the app, inspect the generated files and resolve any missing",
+            "imports, runtime configuration, database adapters, or framework bootstrap",
+            "files required by your target architecture.",
+            "",
+            "Generated files in this package:",
+            "",
+        ]
+    )
+    for generated_file in generated_files:
+        lines.append(f"- `{_safe_archive_path(generated_file.target_path)}`")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _package_usage_instructions(
+    session: MigrationSession,
+    generated_files: list[GeneratedFile],
+) -> str:
+    target_stack = _load_json(session.target_stack_json, {})
+    lines = [
+        "# Run Instructions",
+        "",
+        "These instructions are generated with the migrated package. They describe how",
+        "to inspect and run the generated code after local setup.",
+        "",
+        "## Source Context",
+        "",
+        f"- Source repository: `{session.repository_url}`",
+        f"- Source branch: `{session.branch or 'default'}`",
+        f"- Source commit: `{session.commit_sha or 'not captured'}`",
+        "",
+    ]
+
+    if _is_python_fastapi(target_stack):
+        entrypoint = _guess_fastapi_entrypoint(generated_files)
+        lines.extend(
+            [
+                "## Run A FastAPI App",
+                "",
+                "If the generated package includes an app entrypoint, run it with Uvicorn:",
+                "",
+                "```bash",
+                f"uvicorn {entrypoint} --reload --host 127.0.0.1 --port 8000",
+                "```",
+                "",
+                "Then open:",
+                "",
+                "```text",
+                "http://127.0.0.1:8000/docs",
+                "```",
+                "",
+                "If the generated package does not include the entrypoint yet, create one",
+                "that imports the generated routers/services and mounts them on a FastAPI",
+                "application.",
+                "",
+                "Example `app/main.py`:",
+                "",
+                "```python",
+                "from fastapi import FastAPI",
+                "",
+                "app = FastAPI(title=\"Migrated Application\")",
+                "",
+                "# Import and include generated routers here, for example:",
+                "# from app.controllers.account_controller import router as account_router",
+                "# app.include_router(account_router)",
+                "```",
+                "",
+                "Then run:",
+                "",
+                "```bash",
+                "uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+                "```",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "## Run The Generated App",
+                "",
+                "Use the standard run command for the selected target language/framework.",
+                "If the package does not include a generated entrypoint yet, create the",
+                "small framework bootstrap file that wires the generated services, routes,",
+                "models, and adapters together.",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "## Suggested Verification",
+            "",
+            "1. Review generated models, DTOs/schemas, services, and controllers.",
+            "2. Confirm database configuration and credentials are local-safe.",
+            "3. Install missing dependencies reported by your runtime.",
+            "4. Start the app.",
+            "5. Exercise key endpoints or workflows from the legacy business rules.",
+            "6. Add automated tests before production use.",
+            "",
+            "## Important Notes",
+            "",
+            "- Generated code is a migration starting point, not production-certified code.",
+            "- Check all security-sensitive logic manually.",
+            "- Verify data access and transaction behavior before using real data.",
+            "- Keep secrets in environment variables, not source files.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _is_python_fastapi(target_stack: dict[str, Any]) -> bool:
+    language = str(target_stack.get("language") or "").lower()
+    framework = str(target_stack.get("framework") or "").lower()
+    return "python" in language and "fastapi" in framework
+
+
+def _guess_fastapi_entrypoint(generated_files: list[GeneratedFile]) -> str:
+    target_paths = {
+        _safe_archive_path(generated_file.target_path)
+        for generated_file in generated_files
+    }
+    if "app/main.py" in target_paths:
+        return "app.main:app"
+    if "main.py" in target_paths:
+        return "main:app"
+    return "app.main:app"
 
 
 def _read_analysis_artifact(session_id: str) -> dict[str, Any]:
