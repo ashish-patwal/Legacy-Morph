@@ -1,0 +1,46 @@
+.analysis-panel {
+  padding: 22px;
+}
+
+.analysis-panel__summary {
+  color: #d6dde7;
+  font-size: 18px;
+  line-height: 1.65;
+  margin: 0 0 26px;
+  max-width: 850px;
+}
+
+.analysis-panel__columns {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.analysis-panel h3 {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.analysis-panel ol {
+  color: var(--muted);
+  line-height: 1.65;
+  padding-left: 20px;
+}
+
+.analysis-panel li {
+  margin: 8px 0;
+}
+
+.analysis-panel__functions {
+  border-top: 1px solid var(--line-soft);
+  margin-top: 22px;
+  padding-top: 16px;
+}
+
+@media (max-width: 700px) {
+  .analysis-panel__columns {
+    grid-template-columns: 1fr;
+  }
+}

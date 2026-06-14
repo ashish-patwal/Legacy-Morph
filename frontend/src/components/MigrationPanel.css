@@ -1,0 +1,39 @@
+.migration-panel__meta {
+  align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 18px;
+}
+
+.migration-panel__meta strong {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.migration-panel__status {
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 6px 9px;
+  text-transform: uppercase;
+}
+
+.migration-panel__status--approved {
+  background: rgba(163, 230, 53, 0.1);
+  color: var(--lime);
+}
+
+.migration-panel__status--generated,
+.migration-panel__status--needs_changes {
+  background: rgba(251, 146, 60, 0.1);
+  color: var(--orange);
+}
+
+.migration-panel__review {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}

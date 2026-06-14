@@ -1,0 +1,20 @@
+.target-selector__grid {
+  display: grid;
+  gap: 15px;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 18px;
+}
+
+.target-selector__instructions {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 760px) {
+  .target-selector__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .target-selector__instructions {
+    grid-column: auto;
+  }
+}

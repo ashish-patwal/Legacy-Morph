@@ -1,0 +1,30 @@
+.repository-input {
+  margin-top: 40px;
+}
+
+.repository-input__body {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(280px, 1fr) minmax(130px, 0.25fr) auto;
+  padding: 18px;
+}
+
+.repository-input__button {
+  min-height: 43px;
+}
+
+.repository-input__note {
+  border-top: 1px solid var(--line-soft);
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  margin: 0;
+  padding: 12px 18px;
+}
+
+@media (max-width: 760px) {
+  .repository-input__body {
+    grid-template-columns: 1fr;
+  }
+}

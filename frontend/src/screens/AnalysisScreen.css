@@ -1,0 +1,57 @@
+.analysis-screen__message,
+.analysis-screen__panel,
+.analysis-screen__plan {
+  margin-top: 28px;
+}
+
+.analysis-screen__plan-body {
+  padding: 20px;
+}
+
+.analysis-screen__plan-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.analysis-screen__plan-heading strong {
+  display: block;
+  font-size: 20px;
+  margin-top: 6px;
+}
+
+.analysis-screen__file-plan {
+  border-bottom: 1px solid var(--line-soft);
+  border-top: 1px solid var(--line-soft);
+  margin: 20px 0;
+}
+
+.analysis-screen__file-plan article {
+  align-items: start;
+  border-bottom: 1px solid var(--line-soft);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 34px 1fr;
+  padding: 14px 0;
+}
+
+.analysis-screen__file-plan article:last-child {
+  border-bottom: 0;
+}
+
+.analysis-screen__file-plan article > span {
+  color: var(--lime);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.analysis-screen__file-plan strong {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.analysis-screen__file-plan p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 5px 0 0;
+}

@@ -1,0 +1,109 @@
+.validation-panel {
+  padding: 18px;
+}
+
+.validation-score {
+  align-items: center;
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  padding: 22px;
+}
+
+.validation-score--pass {
+  background: rgba(163, 230, 53, 0.09);
+  border: 1px solid rgba(163, 230, 53, 0.22);
+}
+
+.validation-score--fail {
+  background: rgba(251, 113, 133, 0.09);
+  border: 1px solid rgba(251, 113, 133, 0.22);
+}
+
+.validation-score span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.validation-score strong {
+  font-family: var(--mono);
+  font-size: 30px;
+}
+
+.validation-score--pass strong {
+  color: var(--lime);
+}
+
+.validation-score--fail strong {
+  color: var(--red);
+}
+
+.validation-metrics {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 16px 0;
+}
+
+.validation-metrics div {
+  background: #080e17;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.validation-metrics span,
+.validation-metrics strong {
+  display: block;
+}
+
+.validation-metrics span {
+  color: var(--faint);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.validation-metrics strong {
+  font-family: var(--mono);
+  margin-top: 8px;
+}
+
+.validation-findings h3 {
+  font-size: 12px;
+  margin: 22px 0 10px;
+}
+
+.validation-finding {
+  align-items: start;
+  border-top: 1px solid var(--line-soft);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 70px 1fr;
+  padding: 12px 0;
+}
+
+.validation-finding span {
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.validation-finding--error span {
+  color: var(--red);
+}
+
+.validation-finding--warning span {
+  color: var(--orange);
+}
+
+.validation-finding--info span {
+  color: var(--cyan);
+}
+
+.validation-finding p,
+.validation-findings__empty {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}

@@ -1,0 +1,54 @@
+.repository-screen__message {
+  margin-top: 16px;
+}
+
+.repository-screen__technology {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  margin: 24px 0 14px;
+}
+
+.repository-screen__technology > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.repository-screen__workspace {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(360px, 0.9fr) minmax(430px, 1.1fr);
+}
+
+.repository-screen__continue {
+  align-items: center;
+  background: rgba(163, 230, 53, 0.04);
+  border: 1px solid rgba(163, 230, 53, 0.16);
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding: 18px;
+}
+
+.repository-screen__continue strong {
+  display: block;
+  font-size: 15px;
+  margin-top: 5px;
+}
+
+@media (max-width: 980px) {
+  .repository-screen__workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .repository-screen__continue {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 16px;
+  }
+}
