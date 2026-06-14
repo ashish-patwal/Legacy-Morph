@@ -56,6 +56,28 @@ async function request(path, options = {}) {
   return response.json();
 }
 
+async function downloadFile(path) {
+  const response = await fetch(apiUrl(path));
+
+  if (!response.ok) {
+    let detail = `Download failed with status ${response.status}`;
+    try {
+      const body = await response.json();
+      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    } catch {
+      // Keep the status-based message when the body is not JSON.
+    }
+    throw new Error(detail);
+  }
+
+  const disposition = response.headers.get("content-disposition") || "";
+  const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
+  return {
+    blob: await response.blob(),
+    filename: filenameMatch?.[1] || "legacy-morph-package.zip",
+  };
+}
+
 export const api = {
   health: () => request("/health"),
   inspectRepository: (payload) =>
@@ -68,6 +90,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  latestPackage: () => request("/migration-sessions/latest-package"),
   analyze: (migrationSessionId) =>
     request("/analyze", {
       method: "POST",
@@ -89,4 +112,6 @@ export const api = {
     }),
   packageUrl: (migrationSessionId) =>
     apiUrl(`/migration-sessions/${migrationSessionId}/package`),
+  downloadPackage: (migrationSessionId) =>
+    downloadFile(`/migration-sessions/${migrationSessionId}/package`),
 };

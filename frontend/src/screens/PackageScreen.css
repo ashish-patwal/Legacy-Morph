@@ -26,6 +26,27 @@
   text-decoration: none;
 }
 
+.package-panel__message {
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  margin: 0;
+  padding: 14px 18px 0;
+}
+
+.package-panel__direct-link {
+  border-top: 1px solid var(--line-soft);
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}
+
+.package-panel__direct-link a {
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .package-panel__files {
   border-top: 1px solid var(--line-soft);
   display: grid;

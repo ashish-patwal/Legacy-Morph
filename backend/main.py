@@ -88,6 +88,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 
@@ -140,6 +141,34 @@ def create_migration_session(
     database.commit()
     database.refresh(session)
     return _session_response(session)
+
+
+@app.get("/migration-sessions/latest-package")
+def get_latest_package(
+    database: Session = Depends(get_db),
+) -> dict[str, Any]:
+    session = database.scalar(
+        select(MigrationSession)
+        .join(MigrationSession.generated_files)
+        .where(GeneratedFile.status.in_(["generated", "approved"]))
+        .order_by(GeneratedFile.updated_at.desc())
+        .limit(1)
+    )
+    if session is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No generated package is available yet.",
+        )
+
+    package_files = [
+        generated_file
+        for generated_file in session.generated_files
+        if generated_file.status in {"generated", "approved"}
+    ]
+    return {
+        "session": _session_response(session),
+        "files": [_generated_file_response(file) for file in package_files],
+    }
 
 
 @app.get(
