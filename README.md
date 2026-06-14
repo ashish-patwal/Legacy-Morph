@@ -126,6 +126,11 @@ The planned local URLs are:
 - Backend: `http://localhost:8000`
 - API documentation: `http://localhost:8000/docs`
 
+## Deployment
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the Render single-service deployment
+setup. It builds the Vite frontend and serves it from the FastAPI backend.
+
 ## MVP Persistence
 
 SQLite uses three tables:

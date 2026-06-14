@@ -9,7 +9,8 @@ from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -39,6 +40,8 @@ from schemas import (
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
+FRONTEND_DIST_DIR = ROOT_DIR / "frontend" / "dist"
+FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
 
 
 class AppSettings(BaseSettings):
@@ -1101,3 +1104,35 @@ def _language_for_path(path: str) -> str:
         Path(path).suffix.lower(),
         "Unknown",
     )
+
+
+if FRONTEND_ASSETS_DIR.exists():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=FRONTEND_ASSETS_DIR),
+        name="frontend-assets",
+    )
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_frontend(full_path: str) -> FileResponse:
+    index_path = FRONTEND_DIST_DIR / "index.html"
+    if not index_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Frontend build not found. Run `npm run build` in frontend.",
+        )
+
+    requested_path = FRONTEND_DIST_DIR / full_path
+    if _is_frontend_file(requested_path):
+        return FileResponse(requested_path)
+
+    return FileResponse(index_path)
+
+
+def _is_frontend_file(path: Path) -> bool:
+    try:
+        path.resolve().relative_to(FRONTEND_DIST_DIR.resolve())
+    except ValueError:
+        return False
+    return path.is_file()

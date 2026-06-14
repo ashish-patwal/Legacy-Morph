@@ -1,0 +1,12 @@
+.git
+.env
+.venv
+artifacts
+backend/.venv
+backend/__pycache__
+backend/**/*.pyc
+backend/legacy_morph.db
+frontend/dist
+frontend/node_modules
+node_modules
+.DS_Store

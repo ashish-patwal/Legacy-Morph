@@ -2,13 +2,15 @@ const localHosts = new Set(["localhost", "127.0.0.1"]);
 
 function resolveApiUrl() {
   const configuredUrl = import.meta.env.VITE_BACKEND_URL;
-  const fallbackUrl =
-    typeof window === "undefined"
-      ? "http://localhost:8000"
-      : `${window.location.protocol}//${window.location.hostname}:8000`;
 
-  if (!configuredUrl || typeof window === "undefined") {
-    return configuredUrl || fallbackUrl;
+  if (typeof window === "undefined") {
+    return configuredUrl || "http://localhost:8000";
+  }
+
+  if (!configuredUrl) {
+    return localHosts.has(window.location.hostname)
+      ? `${window.location.protocol}//${window.location.hostname}:8000`
+      : window.location.origin;
   }
 
   try {
