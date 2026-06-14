@@ -18,7 +18,7 @@ const defaultTarget = {
 export function WorkflowProvider({ children }) {
   const [health, setHealth] = useState(null);
   const [repositoryUrl, setRepositoryUrl] = useState(
-    "https://github.com/ashish-patwal/Legacy-Morph",
+    "https://github.com/jitesh0400/legacyBank.git",
   );
   const [branch, setBranch] = useState("main");
   const [inspection, setInspection] = useState(null);
