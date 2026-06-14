@@ -12,7 +12,7 @@ and validation.
 - SQLAlchemy
 - SQLite
 - OpenAI Responses API
-- GitHub MCP
+- Git shallow clones for public GitHub repositories
 
 ## Setup
 
@@ -69,23 +69,19 @@ ARTIFACT_ROOT=./artifacts
 CORS_ORIGINS=http://localhost:5173
 ```
 
-### GitHub MCP
+### GitHub Repository Inspection
 
 ```text
-GITHUB_MCP_SERVER_URL=http://localhost:9000
-GITHUB_MCP_SERVER_NAME=github
-GITHUB_MCP_AUTH_TOKEN=your_mcp_auth_token_here
 GITHUB_MAX_FILES=100
 GITHUB_MAX_FILE_SIZE_BYTES=200000
+GITHUB_MAX_REPOSITORY_SIZE_BYTES=25000000
+GITHUB_CLONE_TIMEOUT_SECONDS=60
+REPOSITORY_TEMP_ROOT=
 ```
 
-The configured MCP server must provide read-only repository metadata and file
-content tools. Tool names can be overridden with:
-
-```text
-GITHUB_MCP_REPOSITORY_TOOL=get_repository
-GITHUB_MCP_CONTENTS_TOOL=get_file_contents
-```
+The backend shallow-clones public GitHub repositories into temporary storage,
+inspects files locally, and removes temporary checkouts on shutdown. Private
+repositories are outside the current MVP.
 
 ## API Workflow
 
@@ -113,7 +109,7 @@ POST /repositories/inspect
 }
 ```
 
-The MCP service returns the repository tree, supported files, detected source
+The repository service returns the repository tree, supported files, detected source
 technologies, and warnings.
 
 ### 3. Create Migration Session

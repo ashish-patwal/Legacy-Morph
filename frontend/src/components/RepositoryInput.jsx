@@ -12,7 +12,7 @@ function RepositoryInput({
     <section className="repository-input panel">
       <div className="panel-header">
         <h2>Repository coordinates</h2>
-        <span className="panel-label">GitHub via MCP</span>
+        <span className="panel-label">Temporary shallow clone</span>
       </div>
       <div className="repository-input__body">
         <div className="field repository-input__url">
@@ -44,8 +44,8 @@ function RepositoryInput({
         </button>
       </div>
       <p className="repository-input__note">
-        Read-only access. Credentials stay in the backend and repository content is
-        treated as untrusted input.
+        Read-only public repository access. Cloned code is treated as untrusted input
+        and never executed.
       </p>
     </section>
   );

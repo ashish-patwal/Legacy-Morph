@@ -11,7 +11,7 @@ reviewed and approved before development continues to the next file.
 
 Legacy-Morph is an AI-powered legacy application migration assistant. It:
 
-1. Reads a GitHub repository through an MCP integration.
+1. Reads a public GitHub repository through a restricted temporary shallow clone.
 2. Detects source languages, frameworks, toolkits, and runtimes.
 3. Generates normalized AST and dependency schema artifacts.
 4. Finds repeated structural patterns across the legacy application.
@@ -77,7 +77,7 @@ runtime, and version are detected and recorded separately.
 GitHub Repository
         |
         v
-GitHub MCP Repository Agent
+GitHub Repository Agent
         |
         v
 Language and Framework Detection
@@ -163,7 +163,7 @@ Legacy-Morph/
 1. Repository documentation and environment templates.
 2. Backend Pydantic schemas.
 3. Simple SQLite models and database setup.
-4. GitHub MCP repository service.
+4. GitHub repository service.
 5. AST and dependency schema agents.
 6. OpenAI service and prompts.
 7. Migration and validation agents.

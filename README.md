@@ -1,7 +1,7 @@
 # Legacy-Morph
 
 Legacy-Morph is an AI-assisted platform for analyzing and modernizing legacy
-applications. It reads a GitHub repository through an MCP integration, builds
+applications. It reads a public GitHub repository through a temporary shallow clone, builds
 structural and dependency artifacts, and generates modern code in a language
 and framework selected by the user.
 
@@ -43,8 +43,10 @@ the legacy toolkit. The architecture is not limited to Java or COBOL.
 
 ### Repository Access
 
-Legacy repositories are accessed through a GitHub-capable MCP server. The
-application should not require direct repository cloning during normal use.
+Public GitHub repositories are accessed through restricted shallow clones into
+temporary backend storage. The application validates repository URLs, applies
+file and size limits, never executes cloned code, and cleans temporary checkouts
+when the backend shuts down.
 
 ## Migration Flow
 
@@ -52,7 +54,7 @@ application should not require direct repository cloning during normal use.
 GitHub repository URL
         |
         v
-Repository inspection through GitHub MCP
+Repository inspection through a temporary shallow clone
         |
         v
 Language and legacy-framework detection
@@ -93,9 +95,8 @@ OPENAI_API_KEY=your_real_key
 Never commit `.env` or paste API keys into source files. The application will
 support deterministic mock responses when an API key is unavailable.
 
-GitHub repository inspection also requires access to a configured GitHub MCP
-server. Its URL, server name, and authentication token are read from environment
-variables.
+Public GitHub repository inspection does not require GitHub credentials. Private
+repositories are outside the current MVP.
 
 ## Planned Local Development
 
@@ -139,7 +140,7 @@ migration session.
 ## Security Boundaries
 
 - Repository content is untrusted input.
-- MCP and OpenAI credentials remain backend-only.
+- OpenAI credentials remain backend-only.
 - Generated code must not run through unrestricted `exec`.
 - Behavioral validation must use trusted functions or a restricted sandbox.
 - LLM review supplements static analysis and tests; it does not replace them.
