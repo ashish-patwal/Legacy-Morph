@@ -42,13 +42,16 @@ from schemas import (
 from validator import loan_calculator_executor, validate_test_cases
 
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+
+
 class AppSettings(BaseSettings):
     artifact_root: str = "./artifacts"
     # Allow both localhost and 127.0.0.1 for local development
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(ROOT_DIR / ".env", ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -742,4 +745,3 @@ def _language_for_path(path: str) -> str:
         Path(path).suffix.lower(),
         "Unknown",
     )
-

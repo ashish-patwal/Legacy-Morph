@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from openai import AsyncOpenAI, OpenAIError
@@ -15,6 +16,9 @@ from prompts import (
 )
 
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+
+
 class AIServiceError(RuntimeError):
     pass
 
@@ -26,7 +30,7 @@ class AISettings(BaseSettings):
     openai_max_output_tokens: int = 8000
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(ROOT_DIR / ".env", ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
