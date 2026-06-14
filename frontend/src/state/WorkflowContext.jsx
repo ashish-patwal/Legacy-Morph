@@ -28,8 +28,6 @@ export function WorkflowProvider({ children }) {
   const [analysis, setAnalysis] = useState(null);
   const [plan, setPlan] = useState(null);
   const [generatedFiles, setGeneratedFiles] = useState([]);
-  const [testCases, setTestCases] = useState([]);
-  const [validation, setValidation] = useState(null);
   const [loading, setLoading] = useState("");
   const [error, setError] = useState("");
 
@@ -71,10 +69,6 @@ export function WorkflowProvider({ children }) {
       setPlan,
       generatedFiles,
       setGeneratedFiles,
-      testCases,
-      setTestCases,
-      validation,
-      setValidation,
       loading,
       error,
       setError,
@@ -91,8 +85,6 @@ export function WorkflowProvider({ children }) {
       analysis,
       plan,
       generatedFiles,
-      testCases,
-      validation,
       loading,
       error,
     ],

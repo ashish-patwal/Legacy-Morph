@@ -2,8 +2,8 @@ import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 
 import AnalysisScreen from "./screens/AnalysisScreen";
 import MigrationScreen from "./screens/MigrationScreen";
+import PackageScreen from "./screens/PackageScreen";
 import RepositoryScreen from "./screens/RepositoryScreen";
-import ValidationScreen from "./screens/ValidationScreen";
 import { useWorkflow } from "./state/WorkflowContext";
 import "./App.css";
 
@@ -11,7 +11,7 @@ const steps = [
   { path: "/", label: "01", title: "Source" },
   { path: "/analysis", label: "02", title: "Analyze" },
   { path: "/migration", label: "03", title: "Migrate" },
-  { path: "/validation", label: "04", title: "Validate" },
+  { path: "/package", label: "04", title: "Package" },
 ];
 
 function App() {
@@ -69,7 +69,8 @@ function App() {
           <Route path="/" element={<RepositoryScreen />} />
           <Route path="/analysis" element={<AnalysisScreen />} />
           <Route path="/migration" element={<MigrationScreen />} />
-          <Route path="/validation" element={<ValidationScreen />} />
+          <Route path="/package" element={<PackageScreen />} />
+          <Route path="/validation" element={<Navigate replace to="/package" />} />
           <Route path="*" element={<Navigate replace to="/" />} />
         </Routes>
       </main>

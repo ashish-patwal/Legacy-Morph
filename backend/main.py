@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import io
 import json
+import zipfile
 from contextlib import asynccontextmanager
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -14,7 +17,6 @@ from sqlalchemy.orm import Session
 from agents.ast_agent import ASTAgent, SourceDocument
 from agents.dependency_agent import DependencyAgent
 from agents.migration_agent import MigrationAgent, MigrationAgentError
-from agents.validation_agent import ValidationAgent
 from ai_service import AIService, AIServiceError
 from database import create_tables, get_db
 from github_mcp_service import (
@@ -22,24 +24,18 @@ from github_mcp_service import (
     GitHubMCPService,
     InvalidRepositoryUrlError,
 )
-from models import GeneratedFile, MigrationSession, ValidationResult
+from models import GeneratedFile, MigrationSession
 from schemas import (
     AnalysisResponse,
     AnalyzeRequest,
     FileReviewRequest,
-    GenerateTestsRequest,
-    GenerateTestsResponse,
     GeneratedFileResponse,
     MigrationSessionCreate,
     MigrationSessionResponse,
     MigrateRequest,
     RepositoryInspectRequest,
     RepositoryInspectResponse,
-    ValidateRequest,
-    ValidationFinding,
-    ValidationResponse,
 )
-from validator import loan_calculator_executor, validate_test_cases
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -71,7 +67,6 @@ github_service = GitHubMCPService()
 ast_agent = ASTAgent(settings.artifact_root)
 dependency_agent = DependencyAgent(settings.artifact_root)
 migration_agent = MigrationAgent(ai_service, settings.artifact_root)
-validation_agent = ValidationAgent(ai_service, settings.artifact_root)
 
 
 @asynccontextmanager
@@ -346,134 +341,50 @@ def review_generated_file(
     return _generated_file_response(generated_file)
 
 
-@app.post("/generate-tests", response_model=GenerateTestsResponse)
-async def generate_tests(
-    request: GenerateTestsRequest,
+@app.get("/migration-sessions/{session_id}/package")
+def download_generated_package(
+    session_id: str,
     database: Session = Depends(get_db),
-) -> GenerateTestsResponse:
-    session = _get_session(database, request.migration_session_id)
-    generated_files = _requested_generated_files(
-        database,
-        session.id,
-        request.generated_file_ids,
-    )
-    analysis = _read_analysis_artifact(session.id)
-
-    try:
-        result = await ai_service.generate_tests(
-            analysis.get("business_rules", []),
-            [_generated_file_context(file) for file in generated_files],
-            _load_json(session.target_stack_json, {}),
+) -> StreamingResponse:
+    session = _get_session(database, session_id)
+    generated_files = list(
+        database.scalars(
+            select(GeneratedFile)
+            .where(GeneratedFile.migration_session_id == session.id)
+            .order_by(GeneratedFile.created_at)
         )
-    except AIServiceError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    session.status = "tests_generated"
-    session.current_step = "validation"
-    database.commit()
-    return GenerateTestsResponse(
-        migration_session_id=session.id,
-        test_cases=result.get("test_cases", []),
     )
-
-
-@app.post("/validate", response_model=ValidationResponse)
-async def validate(
-    request: ValidateRequest,
-    database: Session = Depends(get_db),
-) -> ValidationResponse:
-    session = _get_session(database, request.migration_session_id)
-    generated_files = _requested_generated_files(
-        database,
-        session.id,
-        request.generated_file_ids,
-    )
-    ast_artifact = _read_json_artifact(session.ast_artifact_path)
-    dependency_schema = _read_json_artifact(session.dependency_schema_path)
-    plan_artifact = _load_json(session.migration_plan_json, {})
-    target_stack = _load_json(session.target_stack_json, {})
-
-    file_reports = []
-    for generated_file in generated_files:
-        file_plan = _find_file_plan(
-            plan_artifact,
-            generated_file.target_path,
+    package_files = [
+        generated_file
+        for generated_file in generated_files
+        if generated_file.status in {"generated", "approved"}
+    ]
+    if not package_files:
+        raise HTTPException(
+            status_code=409,
+            detail="Generate code before downloading a package.",
         )
-        generated_context = _generated_file_context(generated_file)
-        relevant_ast = _filter_ast(
-            ast_artifact,
-            set(generated_context["source_paths"]),
+
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        zip_file.writestr(
+            "README.md",
+            _package_readme(session, package_files),
         )
-        try:
-            result = await validation_agent.validate_file(
-                session.id,
-                file_plan,
-                generated_context,
-                relevant_ast,
-                dependency_schema,
-                target_stack,
+        for generated_file in package_files:
+            zip_file.writestr(
+                _safe_archive_path(generated_file.target_path),
+                generated_file.content,
             )
-        except AIServiceError as exc:
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
+    archive.seek(0)
 
-        file_report = result["report"]
-        file_reports.append(file_report)
-        _store_validation_result(
-            database,
-            generated_file.id,
-            "deterministic",
-            file_report["deterministic"],
-        )
-        _store_validation_result(
-            database,
-            generated_file.id,
-            "llm_review",
-            file_report["llm_review"],
-        )
-
-    test_cases = [test.model_dump() for test in request.test_cases]
-    behavioral = _behavioral_validation(test_cases)
-    file_status = all(report["status"] == "PASS" for report in file_reports)
-    overall_status = (
-        "PASS"
-        if file_status and behavioral["status"] == "PASS"
-        else "FAIL"
-    )
-    findings = _response_findings(file_reports)
-
-    session.status = (
-        "validation_passed"
-        if overall_status == "PASS"
-        else "validation_failed"
-    )
-    session.current_step = (
-        "file_review" if overall_status == "PASS" else "file_revision"
-    )
-    database.commit()
-
-    return ValidationResponse(
-        migration_session_id=session.id,
-        status=overall_status,
-        deterministic_status=(
-            "PASS"
-            if all(
-                report["deterministic"]["status"] == "PASS"
-                for report in file_reports
-            )
-            else "FAIL"
-        ),
-        llm_review_status=(
-            "PASS"
-            if all(
-                report["llm_review"]["status"] == "PASS"
-                for report in file_reports
-            )
-            else "FAIL"
-        ),
-        total_tests=behavioral["total_tests"],
-        passed=behavioral["passed"],
-        failed=behavioral["failed"],
-        findings=findings,
+    filename = f"legacy-morph-{session.id[:8]}.zip"
+    return StreamingResponse(
+        archive,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
     )
 
 
@@ -630,76 +541,54 @@ def _generated_file_context(
     }
 
 
-def _store_validation_result(
-    database: Session,
-    generated_file_id: str,
-    validation_type: str,
-    report: dict[str, Any],
-) -> None:
-    database.add(
-        ValidationResult(
-            generated_file_id=generated_file_id,
-            validation_type=validation_type,
-            status=report.get("status", "FAIL"),
-            summary=report.get("summary", f"{validation_type} completed."),
-            details_json=_dump_json(report),
-        )
-    )
-
-
-def _behavioral_validation(
-    test_cases: list[dict[str, Any]],
-) -> dict[str, Any]:
-    loan_fields = {"principal", "rate", "years"}
-    if test_cases and all(
-        loan_fields.issubset(test_case.get("input", {}))
-        for test_case in test_cases
+def _safe_archive_path(target_path: str) -> str:
+    normalized = PurePosixPath(str(target_path).replace("\\", "/"))
+    parts = [
+        part
+        for part in normalized.parts
+        if part not in {"", ".", "/"}
+    ]
+    if (
+        not parts
+        or normalized.is_absolute()
+        or any(part == ".." for part in parts)
     ):
-        return validate_test_cases(test_cases, loan_calculator_executor)
-    return {
-        "status": "FAIL",
-        "total_tests": len(test_cases),
-        "passed": 0,
-        "failed": len(test_cases),
-        "results": [],
-    }
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unsafe generated target path: {target_path}",
+        )
+    return str(PurePosixPath(*parts))
 
 
-def _find_file_plan(
-    plan_artifact: dict[str, Any],
-    target_path: str,
-) -> dict[str, Any]:
-    for file_plan in plan_artifact.get("plan", {}).get("files", []):
-        if file_plan.get("target_path") == target_path:
-            return file_plan
-    raise HTTPException(
-        status_code=409,
-        detail=f"No approved plan entry for {target_path}.",
+def _package_readme(
+    session: MigrationSession,
+    generated_files: list[GeneratedFile],
+) -> str:
+    target_stack = _load_json(session.target_stack_json, {})
+    lines = [
+        "# Legacy-Morph Generated Package",
+        "",
+        f"- Migration session: `{session.id}`",
+        f"- Source repository: `{session.repository_url}`",
+        f"- Source branch: `{session.branch or 'default'}`",
+        f"- Source commit: `{session.commit_sha or 'not captured'}`",
+        f"- Target language: `{target_stack.get('language', 'unspecified')}`",
+        f"- Target framework: `{target_stack.get('framework', 'unspecified')}`",
+        f"- Files included: `{len(generated_files)}`",
+        "",
+        "## Included Files",
+        "",
+    ]
+    for generated_file in generated_files:
+        lines.append(f"- `{_safe_archive_path(generated_file.target_path)}`")
+    lines.extend(
+        [
+            "",
+            "Generated code should be reviewed before production use.",
+            "",
+        ]
     )
-
-
-def _filter_ast(
-    ast_artifact: dict[str, Any],
-    source_paths: set[str],
-) -> dict[str, Any]:
-    return {
-        "schema_version": ast_artifact.get("schema_version"),
-        "files": [
-            item
-            for item in ast_artifact.get("files", [])
-            if item.get("source_file") in source_paths
-        ],
-    }
-
-
-def _response_findings(
-    file_reports: list[dict[str, Any]],
-) -> list[ValidationFinding]:
-    findings = []
-    for report in file_reports:
-        for item in report.get("findings", []):
-            findings.append(ValidationFinding.model_validate(item))
-    return findings
+    return "\n".join(lines)
 
 
 def _read_analysis_artifact(session_id: str) -> dict[str, Any]:

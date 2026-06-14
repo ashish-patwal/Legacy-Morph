@@ -29,8 +29,12 @@ function resolveApiUrl() {
 
 const API_URL = resolveApiUrl();
 
+function apiUrl(path) {
+  return `${API_URL}${path}`;
+}
+
 async function request(path, options = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(apiUrl(path), {
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -83,21 +87,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  generateTests: (migrationSessionId, generatedFileIds) =>
-    request("/generate-tests", {
-      method: "POST",
-      body: JSON.stringify({
-        migration_session_id: migrationSessionId,
-        generated_file_ids: generatedFileIds,
-      }),
-    }),
-  validate: (migrationSessionId, generatedFileIds, testCases) =>
-    request("/validate", {
-      method: "POST",
-      body: JSON.stringify({
-        migration_session_id: migrationSessionId,
-        generated_file_ids: generatedFileIds,
-        test_cases: testCases,
-      }),
-    }),
+  packageUrl: (migrationSessionId) =>
+    apiUrl(`/migration-sessions/${migrationSessionId}/package`),
 };

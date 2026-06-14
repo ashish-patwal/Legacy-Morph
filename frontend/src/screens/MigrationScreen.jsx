@@ -39,7 +39,7 @@ function MigrationScreen() {
         workflow.generatedFiles.map((file) => updatedById.get(file.id) || file),
       );
       if (decision === "approved") {
-        navigate("/validation");
+        navigate("/package");
       }
     } catch {
       // The shared workflow already exposes the request error.
@@ -64,7 +64,7 @@ function MigrationScreen() {
       </h1>
       <p className="screen-intro">
         Generate the complete planned code batch from approved source evidence,
-        then review and approve the full migration before validation.
+        then review and approve the full migration before packaging.
       </p>
 
       {workflow.error && <div className="error-banner migration-screen__message">{workflow.error}</div>}

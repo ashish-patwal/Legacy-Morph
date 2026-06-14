@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
@@ -123,43 +123,3 @@ class FileReviewRequest(ApiModel):
         if self.decision == "needs_changes" and not self.comments:
             raise ValueError("comments are required when requesting changes")
         return self
-
-
-class TestCase(ApiModel):
-    name: str = Field(min_length=1, max_length=200)
-    input: dict[str, Any]
-    expected_output: dict[str, Any]
-
-
-class GenerateTestsRequest(ApiModel):
-    migration_session_id: str
-    generated_file_ids: list[str] = Field(min_length=1)
-
-
-class GenerateTestsResponse(ApiModel):
-    migration_session_id: str
-    test_cases: list[TestCase]
-
-
-class ValidateRequest(ApiModel):
-    migration_session_id: str
-    generated_file_ids: list[str] = Field(min_length=1)
-    test_cases: list[TestCase] = Field(min_length=1)
-
-
-class ValidationFinding(ApiModel):
-    severity: Literal["info", "warning", "error"]
-    message: str
-    source_path: str | None = None
-    target_path: str | None = None
-
-
-class ValidationResponse(ApiModel):
-    migration_session_id: str
-    status: Literal["PASS", "FAIL"]
-    deterministic_status: Literal["PASS", "FAIL"]
-    llm_review_status: Literal["PASS", "FAIL", "SKIPPED"]
-    total_tests: int = Field(ge=0)
-    passed: int = Field(ge=0)
-    failed: int = Field(ge=0)
-    findings: list[ValidationFinding] = Field(default_factory=list)
