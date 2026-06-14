@@ -1,4 +1,33 @@
-const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+const localHosts = new Set(["localhost", "127.0.0.1"]);
+
+function resolveApiUrl() {
+  const configuredUrl = import.meta.env.VITE_BACKEND_URL;
+  const fallbackUrl =
+    typeof window === "undefined"
+      ? "http://localhost:8000"
+      : `${window.location.protocol}//${window.location.hostname}:8000`;
+
+  if (!configuredUrl || typeof window === "undefined") {
+    return configuredUrl || fallbackUrl;
+  }
+
+  try {
+    const apiUrl = new URL(configuredUrl);
+    if (
+      localHosts.has(apiUrl.hostname) &&
+      localHosts.has(window.location.hostname)
+    ) {
+      apiUrl.hostname = window.location.hostname;
+      return apiUrl.origin;
+    }
+  } catch {
+    return configuredUrl;
+  }
+
+  return configuredUrl;
+}
+
+const API_URL = resolveApiUrl();
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
