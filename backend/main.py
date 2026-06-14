@@ -44,7 +44,8 @@ from validator import loan_calculator_executor, validate_test_cases
 
 class AppSettings(BaseSettings):
     artifact_root: str = "./artifacts"
-    cors_origins: str = "http://localhost:5173"
+    # Allow both localhost and 127.0.0.1 for local development
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     model_config = SettingsConfigDict(
         env_file=".env",
